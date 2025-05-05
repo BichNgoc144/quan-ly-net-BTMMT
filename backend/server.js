@@ -2,134 +2,114 @@
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const sequelize = require('./db');
+const User = require('./models/User');
+const Machine = require('./models/Machine');
+
 const app = express();
 const port = 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-let rooms = [
-    { id: 1, name: 'Room 1', available: true },
-    { id: 2, name: 'Room 2', available: false },
-    { id: 3, name: 'Room 3', available: true },
-];
+// Khởi tạo & đồng bộ CSDL
+sequelize.sync({ alter: true }).then(async () => {
+    console.log('✅ Database synced with MySQL');
 
-let users = [
-    {
-        id: 1,
-        email: 'admin@example.com',
-        password: '', // Mật khẩu sẽ được mã hóa khi server khởi động
-        role: 'admin',
+    // Tạo admin nếu chưa tồn tại
+    const adminEmail = 'admin@example.com';
+    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+    if (!existingAdmin) {
+        const hashedPassword = await bcrypt.hash('admin@123', 10);
+        await User.create({
+            email: adminEmail,
+            password: hashedPassword,
+            role: 'admin',
+        });
+        console.log('🔐 Admin mặc định đã được tạo');
     }
-];
-
-// Mã hóa mật khẩu mới cho admin khi server khởi động
-bcrypt.hash('admin@123', 10, (err, hash) => {
-    if (err) throw err;
-
-    // Cập nhật mật khẩu admin thành mật khẩu mới đã mã hóa
-    users[0].password = hash; // users[0] là admin
-
-    console.log('Mật khẩu admin mới đã được mã hóa:', users[0].password);  // In mật khẩu đã mã hóa vào console
 });
 
-// Xác thực JWT
+// Middleware xác thực token
 const authenticateToken = (req, res, next) => {
-    const token = req.header('Authorization') && req.header('Authorization').split(' ')[1];
-    if (!token) {
-        return res.status(403).send('Access denied');
-    }
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (!token) return res.status(403).send('Access denied');
 
     jwt.verify(token, 'secretkey', (err, user) => {
-        if (err) {
-            return res.status(403).send('Invalid token');
-        }
+        if (err) return res.status(403).send('Invalid token');
         req.user = user;
         next();
     });
 };
 
-// Đăng nhập và trả về JWT
-app.post('/api/login', (req, res) => {
+// Đăng ký
+app.post('/api/register', async (req, res) => {
     const { email, password } = req.body;
-    const user = users.find((u) => u.email === email);
-    if (!user) {
-        return res.status(400).send('Invalid email or password');
-    }
 
-    bcrypt.compare(password, user.password, (err, isMatch) => {
-        if (err || !isMatch) {
-            return res.status(400).send('Invalid email or password');
-        }
+    try {
+        const existing = await User.findOne({ where: { email } });
+        if (existing) return res.status(400).send('Email already exists');
+
+        const hashed = await bcrypt.hash(password, 10);
+        await User.create({ email, password: hashed });
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (err) {
+        res.status(500).send('Error registering user');
+    }
+});
+
+// Đăng nhập
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await User.findOne({ where: { email } });
+        if (!user) return res.status(400).send('Invalid email or password');
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).send('Invalid email or password');
 
         const token = jwt.sign({ id: user.id, role: user.role }, 'secretkey', { expiresIn: '1h' });
-        res.json({ token });
-    });
-});
-
-// Đăng ký người dùng mới (Mặc định là user)
-app.post('/api/register', (req, res) => {
-    const { email, password } = req.body;
-
-    // Kiểm tra nếu email đã tồn tại trong hệ thống
-    const existingUser = users.find((u) => u.email === email);
-    if (existingUser) {
-        return res.status(400).send('Email already exists');
+        res.json({ token, role: user.role });
+    } catch (err) {
+        res.status(500).send('Login error');
     }
-
-    // Mã hóa mật khẩu trước khi lưu
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) throw err;
-
-        // Tạo tài khoản mới với vai trò mặc định là user
-        const newUser = {
-            id: users.length + 1,
-            email,
-            password: hashedPassword,
-            role: 'user',
-        };
-
-        users.push(newUser);
-        res.status(201).json({ message: 'User registered successfully' });
-    });
 });
 
-// API - GET Rooms
-app.get('/api/rooms', authenticateToken, (req, res) => {
-    res.json(rooms);
+// GET danh sách máy (admin)
+app.get('/api/machines', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).send('Access denied');
+    const machines = await Machine.findAll();
+    res.json(machines);
 });
 
-// API - POST Add a new room (Only Admin)
-app.post('/api/rooms', authenticateToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).send('Access denied');
+// POST thêm máy
+app.post('/api/machines', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).send('Access denied');
+
+    const { name, status, price } = req.body;
+    if (!name || !status || !price) return res.status(400).send('Missing data');
+
+    try {
+        const newMachine = await Machine.create({ name, status, price });
+        res.status(201).json(newMachine);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error creating machine');
     }
-
-    const room = req.body;
-    rooms.push(room);
-    res.status(201).json(room);
 });
 
-// API - PUT Update room availability
-app.put('/api/rooms/:id', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    const updatedRoom = req.body;
-    rooms = rooms.map((room) => (room.id == id ? { ...room, ...updatedRoom } : room));
-    res.json(updatedRoom);
-});
 
-// API - DELETE Room (Only Admin)
-app.delete('/api/rooms/:id', authenticateToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).send('Access denied');
-    }
+// DELETE xoá máy
+app.delete('/api/machines/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).send('Access denied');
 
-    const { id } = req.params;
-    rooms = rooms.filter((room) => room.id != id);
+    const id = req.params.id;
+    await Machine.destroy({ where: { id } });
     res.status(204).send();
 });
 
+// Khởi động server
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`🚀 Server running at http://localhost:${port}`);
 });

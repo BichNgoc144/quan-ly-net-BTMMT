@@ -1,26 +1,34 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿// App.js
+import React, { useEffect, useState } from 'react';
 import Login from './Login';
 import Register from './Register';
-import RoomList from './RoomList';
 import LandingPage from './LandingPage';
+import MachineManager from './MachineManager';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
     const [showRegister, setShowRegister] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
+    const [showManageMachines, setShowManageMachines] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        if (token) {
+        const role = localStorage.getItem('role');
+        if (token && role) {
             setIsAuthenticated(true);
+            setUser({ role });
         }
     }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('role');
         setIsAuthenticated(false);
+        setUser(null);
         setShowLogin(false);
         setShowRegister(false);
+        setShowManageMachines(false);
     };
 
     const toggleLogin = () => {
@@ -35,13 +43,19 @@ function App() {
 
     return (
         <div className="App">
-            {/* Navbar */}
             <nav className="navbar navbar-expand-lg navbar-dark bg-dark px-4">
-                <span className="navbar-brand">Không chơi Net đời không nể</span>
-                <div className="ms-auto">
+            <div className="d-flex align-items-center w-100">
+                <span className="navbar-brand">NetZone</span>
+                    {isAuthenticated && user?.role === 'admin' && (
+                        <button className="btn btn-outline-light" onClick={() => setShowManageMachines(true)}>
+                            Quản lý máy
+                        </button>
+                    )}
+                    
+        <d          iv className="ms-auto d-flex gap-2">
                     {!isAuthenticated ? (
                         <>
-                            <button className="btn btn-outline-light me-2" onClick={toggleLogin}>Đăng nhập</button>
+                            <button className="btn btn-outline-light" onClick={toggleLogin}>Đăng nhập</button>
                             <button className="btn btn-outline-light" onClick={toggleRegister}>Đăng ký</button>
                         </>
                     ) : (
@@ -50,16 +64,21 @@ function App() {
                 </div>
             </nav>
 
-            {/* Nội dung */}
             <div className="container mt-4">
                 {!isAuthenticated ? (
                     <>
-                        {showLogin && <Login toggleForm={toggleRegister} />}
+                        {showLogin && <Login toggleForm={toggleRegister} setUser={setUser} setIsAuthenticated={setIsAuthenticated} />}
                         {showRegister && <Register toggleForm={toggleLogin} />}
-                        {!showLogin && !showRegister && <LandingPage />}
+                        {!showLogin && !showRegister && (
+                            <LandingPage />
+                        )}
                     </>
                 ) : (
-                    <RoomList />
+                    user?.role === 'admin' && showManageMachines ? (
+                        <MachineManager />
+                    ) : (
+                        <LandingPage />
+                    )
                 )}
             </div>
         </div>
