@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import axios from 'axios';
 
-const Login = ({ toggleForm, setIsAuthenticated, setUser }) => {
+const Login = ({ toggleForm, setIsAuthenticated, setUser, setCurrentScreen }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -13,11 +13,17 @@ const Login = ({ toggleForm, setIsAuthenticated, setUser }) => {
             .then(response => {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('role', response.data.role);
+                localStorage.setItem('id', response.data.id);
+
+
+                axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+
                 setIsAuthenticated(true);
-                setUser({ role: response.data.role });
+                setUser({ id: response.data.id, role: response.data.role });
+                setCurrentScreen('home'); // ✅ Chuyển màn hình khi login thành công
                 setError('');
             })
-            .catch(error => {
+            .catch(() => {
                 setError('Invalid email or password');
             });
     };
