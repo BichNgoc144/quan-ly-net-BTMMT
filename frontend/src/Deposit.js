@@ -5,6 +5,7 @@ function Deposit({ setBalance, setCurrentScreen }) {
     const [amount, setAmount] = useState('');
     const [history, setHistory] = useState([]);
     const userId = Number(localStorage.getItem('id'));
+
     if (!userId || isNaN(userId)) {
         console.error("❌ Không lấy được userId hợp lệ từ localStorage");
     }
@@ -31,6 +32,8 @@ function Deposit({ setBalance, setCurrentScreen }) {
         console.log("👉 userId nhận được trong Deposit:", userId);
         fetchHistory();
     }, [userId]);
+
+
 
     const handleDeposit = async () => {
         console.log("🟢 Bấm nút nạp tiền");
@@ -81,6 +84,7 @@ function Deposit({ setBalance, setCurrentScreen }) {
             alert(`❌ Lỗi khi nạp tiền: ${err.response?.data?.message || err.message || "Không rõ nguyên nhân"}`);
         }
     };
+
 
     return (
         <div className="card p-3 mt-4">

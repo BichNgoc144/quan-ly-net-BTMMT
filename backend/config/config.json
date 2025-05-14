@@ -1,0 +1,22 @@
+{
+    "development": {
+        "username": "root",
+        "password": "susu14042005",
+        "database": "netzone",
+        "host": "127.0.0.1",
+        "dialect": "mysql"
+    },
+    "test": {
+        "username": "root",
+        "password": "netzone",
+        "host": "127.0.0.1",
+        "dialect": "mysql"
+    },
+    "production": {
+        "username": "root",
+        "password": "susu14042005",
+        "database": "netzone",
+        "host": "127.0.0.1",
+        "dialect": "mysql"
+    }
+}

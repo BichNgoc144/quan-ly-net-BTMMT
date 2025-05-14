@@ -16,7 +16,7 @@ const MachineManager = () => {
 
     const fetchMachines = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/machines', {
+            const res = await axios.get('http://localhost:5000/api/machines/admin', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMachines(res.data);

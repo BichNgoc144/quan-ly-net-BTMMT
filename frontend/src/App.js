@@ -5,6 +5,9 @@ import LandingPage from './LandingPage';
 import MachineManager from './MachineManager';
 import Deposit from './Deposit';
 import UseMachine from './UseMachine';
+import SatictisTime from './SatictisTime';
+import RevenueByMachine from './RevenueByMachine';
+import UserManagement from './UserManagement';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,8 +36,6 @@ function App() {
                 .then(data => {
                     if (data.balance !== undefined) {
                         setBalance(data.balance);
-                        console.log("✅ Balance cập nhật từ backend:", data.balance);
-
                     }
                 });
         }
@@ -66,18 +67,49 @@ function App() {
                 <div className="d-flex align-items-center w-100">
                     <span className="navbar-brand">NetZone</span>
 
+                    {/* Admin Buttons */}
                     {isAuthenticated && user?.role === 'admin' && (
-                        <button className="btn btn-outline-light" onClick={() => setShowManageMachines(true)}>
-                            Quản lý máy
-                        </button>
+                        <>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setShowManageMachines(true)}
+                            >
+                                Quản lý máy
+                            </button>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setCurrentScreen('manageTime')}
+                            >
+                                Thống kê thời gian
+                            </button>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setCurrentScreen('revenueByMachine')}
+                            >
+                                Doanh thu theo máy
+                            </button>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setCurrentScreen('userManagement')}
+                            >
+                                Quản lý người dùng
+                            </button>
+                        </>
                     )}
 
+                    {/* User Buttons */}
                     {isAuthenticated && user?.role === 'user' && (
                         <>
-                            <button className="btn btn-outline-light ms-2" onClick={() => setCurrentScreen('useMachine')}>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setCurrentScreen('useMachine')}
+                            >
                                 Sử dụng máy
                             </button>
-                            <button className="btn btn-outline-light ms-2" onClick={() => setCurrentScreen('deposit')}>
+                            <button
+                                className="btn btn-outline-light ms-2"
+                                onClick={() => setCurrentScreen('deposit')}
+                            >
                                 Nạp tiền
                             </button>
                         </>
@@ -110,32 +142,35 @@ function App() {
                         {showRegister && <Register toggleForm={toggleLogin} />}
                         {!showLogin && !showRegister && <LandingPage />}
                     </>
-                ) : user?.role === 'admin' && showManageMachines ? (
-                    <MachineManager />
+                ) : user?.role === 'admin' ? (
+                    <>
+                        {currentScreen === 'manageTime' && <SatictisTime />}
+                        {currentScreen === 'revenueByMachine' && <RevenueByMachine />}
+                        {currentScreen === 'userManagement' && <UserManagement />}
+                        {showManageMachines && <MachineManager />}
+                    </>
                 ) : user?.role === 'user' ? (
                     <>
                         {currentScreen === 'home' && <LandingPage />}
-                                {currentScreen === 'deposit' && (
-                                    <Deposit userId={user.id} setBalance={setBalance}
-                                        setCurrentScreen={setCurrentScreen} />
-                                )}
-
-                                {currentScreen === 'useMachine' && (
+                        {currentScreen === 'deposit' && (
+                            <Deposit userId={user.id} setBalance={setBalance} setCurrentScreen={setCurrentScreen} />
+                        )}
+                        {currentScreen === 'useMachine' && (
+                            <>
+                                <p className="text-muted">💰 Số dư hiện tại: {balance.toLocaleString()} VNĐ</p>
+                                {balance < 5000 ? (
                                     <>
-                                        <p className="text-muted">💰 Số dư hiện tại: {balance.toLocaleString()} VNĐ</p>
-                                        {balance < 5000 ? (
-                                            <>
-                                                <p className="text-danger">Bạn không đủ tiền để sử dụng máy. Vui lòng nạp tiền.</p>
-                                                <button className="btn btn-success" onClick={() => setCurrentScreen('deposit')}>
-                                                    👉 Chuyển đến trang Nạp tiền
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <UseMachine token={localStorage.getItem('token')} />
-                                        )}
+                                        <p className="text-danger">Bạn không đủ tiền để sử dụng máy. Vui lòng nạp tiền.</p>
+                                        <button className="btn btn-success" onClick={() => setCurrentScreen('deposit')}>
+                                            👉 Chuyển đến trang Nạp tiền
+                                        </button>
                                     </>
+                                ) : (
+                                    <UseMachine token={localStorage.getItem('token')} />
                                 )}
                             </>
+                        )}
+                    </>
                 ) : (
                     <LandingPage />
                 )}
